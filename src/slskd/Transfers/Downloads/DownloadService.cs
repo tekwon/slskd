@@ -284,6 +284,13 @@ namespace slskd.Transfers.Downloads
                                             waitUntilEnqueue.TrySetResult(true);
                                         }
 
+                                        // Raise started event when transfer begins
+                                        if (args.Transfer.State == TransferStates.InProgress && transfer.StartedAt == null)
+                                        {
+                                            transfer.StartedAt = DateTime.UtcNow;
+                                            EventBus.Raise(new DownloadFileStartedEvent { Transfer = transfer });
+                                        }
+
                                         SynchronizedUpdate(transfer);
                                     },
                                     progressUpdated: (args) => rateLimiter.Invoke(() =>
@@ -304,6 +311,9 @@ namespace slskd.Transfers.Downloads
                                                     // this helps prevent this update from 'stepping' on other updates
                                                     transfer.BytesTransferred = args.Transfer.BytesTransferred;
                                                     transfer.AverageSpeed = args.Transfer.AverageSpeed;
+
+                                                    // Raise progress event for real-time updates
+                                                    EventBus.Raise(new DownloadFileProgressEvent { Transfer = transfer });
 
                                                     using var context = ContextFactory.CreateDbContext();
 
@@ -427,6 +437,9 @@ namespace slskd.Transfers.Downloads
                                 transfer.Exception = ex.Message;
                                 transfer.State = TransferStates.Completed | TransferStates.Cancelled;
 
+                                // Raise cancelled event
+                                EventBus.Raise(new DownloadFileCancelledEvent { Transfer = transfer });
+
                                 // todo: broadcast to signalr hub
                                 SynchronizedUpdate(transfer, cancellable: false);
 
@@ -439,6 +452,12 @@ namespace slskd.Transfers.Downloads
                                 transfer.EndedAt = DateTime.UtcNow;
                                 transfer.Exception = ex.Message;
                                 transfer.State = TransferStates.Completed | TransferStates.Errored;
+
+                                // Raise error event
+                                EventBus.Raise(new DownloadFileErroredEvent { 
+                                    Transfer = transfer, 
+                                    ErrorMessage = ex.Message 
+                                });
 
                                 // todo: broadcast to signalr hub
                                 SynchronizedUpdate(transfer, cancellable: false);

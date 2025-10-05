@@ -35,10 +35,14 @@ namespace slskd.Transfers.API
             EventBus = eventBus;
             Logger = logger;
 
-            Logger.LogInformation("TransferEventHandler initialized, subscribing to DownloadFileCompleteEvent");
+            Logger.LogInformation("TransferEventHandler initialized, subscribing to transfer events");
 
-            // Subscribe to download events
+            // Subscribe to all transfer events
             EventBus.Subscribe<DownloadFileCompleteEvent>("TransferEventHandler", OnDownloadFileComplete);
+            EventBus.Subscribe<DownloadFileStartedEvent>("TransferEventHandler", OnDownloadFileStarted);
+            EventBus.Subscribe<DownloadFileProgressEvent>("TransferEventHandler", OnDownloadFileProgress);
+            EventBus.Subscribe<DownloadFileCancelledEvent>("TransferEventHandler", OnDownloadFileCancelled);
+            EventBus.Subscribe<DownloadFileErroredEvent>("TransferEventHandler", OnDownloadFileErrored);
 
             Logger.LogInformation("TransferEventHandler subscription completed");
         }
@@ -64,6 +68,74 @@ namespace slskd.Transfers.API
             catch (System.Exception ex)
             {
                 Logger.LogError(ex, "Error broadcasting transfer completion event");
+            }
+        }
+
+        private async Task OnDownloadFileStarted(DownloadFileStartedEvent eventData)
+        {
+            Logger.LogInformation("DownloadFileStartedEvent received for file: {Filename}", eventData.Transfer.Filename);
+
+            try
+            {
+                var apiTransfer = ConvertToApiTransfer(eventData.Transfer);
+                Logger.LogInformation("Broadcasting CREATE event for: {Filename}", apiTransfer.Filename);
+                await TransferHub.Clients.All.SendAsync("CREATE", apiTransfer);
+                Logger.LogInformation("CREATE event broadcast completed");
+            }
+            catch (System.Exception ex)
+            {
+                Logger.LogError(ex, "Failed to broadcast transfer started event");
+            }
+        }
+
+        private async Task OnDownloadFileProgress(DownloadFileProgressEvent eventData)
+        {
+            Logger.LogDebug("DownloadFileProgressEvent received for file: {Filename} ({Percent}%)", 
+                eventData.Transfer.Filename, eventData.Transfer.PercentComplete);
+
+            try
+            {
+                var apiTransfer = ConvertToApiTransfer(eventData.Transfer);
+                await TransferHub.Clients.All.SendAsync("UPDATE", apiTransfer);
+            }
+            catch (System.Exception ex)
+            {
+                Logger.LogError(ex, "Failed to broadcast transfer progress event");
+            }
+        }
+
+        private async Task OnDownloadFileCancelled(DownloadFileCancelledEvent eventData)
+        {
+            Logger.LogInformation("DownloadFileCancelledEvent received for file: {Filename}", eventData.Transfer.Filename);
+
+            try
+            {
+                var apiTransfer = ConvertToApiTransfer(eventData.Transfer);
+                Logger.LogInformation("Broadcasting UPDATE event for cancelled: {Filename}", apiTransfer.Filename);
+                await TransferHub.Clients.All.SendAsync("UPDATE", apiTransfer);
+                Logger.LogInformation("Cancelled UPDATE event broadcast completed");
+            }
+            catch (System.Exception ex)
+            {
+                Logger.LogError(ex, "Failed to broadcast transfer cancelled event");
+            }
+        }
+
+        private async Task OnDownloadFileErrored(DownloadFileErroredEvent eventData)
+        {
+            Logger.LogInformation("DownloadFileErroredEvent received for file: {Filename}, Error: {Error}", 
+                eventData.Transfer.Filename, eventData.ErrorMessage);
+
+            try
+            {
+                var apiTransfer = ConvertToApiTransfer(eventData.Transfer);
+                Logger.LogInformation("Broadcasting UPDATE event for errored: {Filename}", apiTransfer.Filename);
+                await TransferHub.Clients.All.SendAsync("UPDATE", apiTransfer);
+                Logger.LogInformation("Error UPDATE event broadcast completed");
+            }
+            catch (System.Exception ex)
+            {
+                Logger.LogError(ex, "Failed to broadcast transfer error event");
             }
         }
 
