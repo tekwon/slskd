@@ -69,6 +69,7 @@ namespace slskd
     using slskd.Search.API;
     using slskd.Shares;
     using slskd.Transfers;
+    using slskd.Transfers.API;
     using slskd.Transfers.Downloads;
     using slskd.Transfers.Uploads;
     using slskd.Users;
@@ -529,6 +530,19 @@ namespace slskd
                 }
 
                 Log.Information("Configuration complete.  Starting application...");
+
+                Log.Information("About to initialize TransferEventHandler...");
+                // Initialize TransferEventHandler to ensure it subscribes to events
+                try
+                {
+                    var transferEventHandler = app.Services.GetRequiredService<slskd.Transfers.API.TransferEventHandler>();
+                    Log.Information("TransferEventHandler initialized successfully");
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "Failed to initialize TransferEventHandler");
+                }
+
                 app.Run();
             }
             catch (Exception ex)
@@ -657,6 +671,7 @@ namespace slskd
             services.AddSingleton<IDownloadService, DownloadService>();
             services.AddSingleton<IUploadService, UploadService>();
             services.AddSingleton<FileService>();
+            services.AddSingleton<slskd.Transfers.API.TransferEventHandler>();
 
             services.AddSingleton<IRelayService, RelayService>();
 
@@ -979,6 +994,7 @@ namespace slskd
                 endpoints.MapHub<LogsHub>("/hub/logs");
                 endpoints.MapHub<SearchHub>("/hub/search");
                 endpoints.MapHub<RelayHub>("/hub/relay");
+                endpoints.MapHub<TransferHub>("/hub/transfers");
 
                 endpoints.MapControllers();
                 endpoints.MapHealthChecks("/health");

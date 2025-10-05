@@ -15,7 +15,9 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Options;
+using slskd.Transfers.API;
 using Soulseek;
 
 namespace slskd.Transfers.Downloads
@@ -124,7 +126,8 @@ namespace slskd.Transfers.Downloads
             FileService fileService,
             IRelayService relayService,
             IFTPService ftpClient,
-            EventBus eventBus)
+            EventBus eventBus,
+            IHubContext<TransferHub> transferHub)
         {
             Client = soulseekClient;
             OptionsMonitor = optionsMonitor;
@@ -133,6 +136,7 @@ namespace slskd.Transfers.Downloads
             FTP = ftpClient;
             Relay = relayService;
             EventBus = eventBus;
+            TransferHub = transferHub;
         }
 
         private ConcurrentDictionary<Guid, CancellationTokenSource> CancellationTokens { get; } = new ConcurrentDictionary<Guid, CancellationTokenSource>();
@@ -144,6 +148,7 @@ namespace slskd.Transfers.Downloads
         private ILogger Log { get; } = Serilog.Log.ForContext<DownloadService>();
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private EventBus EventBus { get; }
+        private IHubContext<TransferHub> TransferHub { get; }
 
         /// <summary>
         ///     Adds the specified <paramref name="transfer"/>. Supersedes any existing record for the same file and username.
@@ -368,6 +373,28 @@ namespace slskd.Transfers.Downloads
                                     RemoteFilename = transfer.Filename,
                                     Transfer = transfer,
                                 });
+
+                                // Broadcast completion via SignalR
+                                var apiTransfer = new API.Transfer
+                                {
+                                    Username = transfer.Username,
+                                    Direction = transfer.Direction,
+                                    Filename = transfer.Filename,
+                                    Size = transfer.Size,
+                                    StartOffset = transfer.StartOffset,
+                                    State = transfer.State,
+                                    StartTime = transfer.StartedAt,
+                                    EndTime = transfer.EndedAt,
+                                    BytesTransferred = transfer.BytesTransferred,
+                                    AverageSpeed = transfer.AverageSpeed,
+                                    PercentComplete = transfer.PercentComplete,
+                                    BytesRemaining = transfer.BytesRemaining,
+                                    ElapsedTime = transfer.ElapsedTime?.TotalMilliseconds,
+                                    RemainingTime = transfer.RemainingTime?.TotalMilliseconds,
+                                    PlaceInQueue = transfer.PlaceInQueue,
+                                    Exception = transfer.Exception,
+                                };
+                                _ = TransferHub.BroadcastUpdateAsync(apiTransfer);
 
                                 // try to figure out if this file is the last of a directory, and if so, raise the associated
                                 // event. this can be tricky because we want to be sure that this is the last file in this specific
