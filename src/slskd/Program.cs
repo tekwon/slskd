@@ -475,6 +475,12 @@ namespace slskd
                         Log.Information($"Listening for HTTP requests at http://{IPAddress.Any}:{OptionsAtStartup.Web.Port}/");
                         options.Listen(IPAddress.Any, OptionsAtStartup.Web.Port);
 
+                        if (OptionsAtStartup.Web.Socket != null)
+                        {
+                            Log.Information($"Listening for HTTP requests on unix domain socket (UDS) {OptionsAtStartup.Web.Socket}");
+                            options.ListenUnixSocket(OptionsAtStartup.Web.Socket);
+                        }
+
                         if (!OptionsAtStartup.Web.Https.Disabled)
                         {
                             Log.Information($"Listening for HTTPS requests at https://{IPAddress.Any}:{OptionsAtStartup.Web.Https.Port}/");
@@ -493,12 +499,6 @@ namespace slskd
                                     listenOptions.UseHttps(X509.Generate(subject: AppName));
                                 }
                             });
-                        }
-
-                        if (OptionsAtStartup.Web.Socket != null)
-                        {
-                            Log.Information($"Listening on socket {OptionsAtStartup.Web.Socket}");
-                            options.ListenUnixSocket(OptionsAtStartup.Web.Socket);
                         }
                     });
 
