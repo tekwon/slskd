@@ -72,6 +72,7 @@ namespace slskd
     using slskd.Shares;
     using slskd.Telemetry;
     using slskd.Transfers;
+    using slskd.Transfers.API;
     using slskd.Transfers.Downloads;
     using slskd.Transfers.Uploads;
     using slskd.Users;
@@ -603,6 +604,7 @@ namespace slskd
                 _ = app.Services.GetService<ScriptService>();
                 _ = app.Services.GetService<WebhookService>();
                 _ = app.Services.GetService<VPNService>();
+                _ = app.Services.GetRequiredService<TransferEventHandler>();
 
                 app.ConfigureAspDotNetPipeline();
 
@@ -755,6 +757,7 @@ namespace slskd
             services.AddSingleton<ITransferService, TransferService>();
             services.AddSingleton<IDownloadService, DownloadService>();
             services.AddSingleton<IUploadService, UploadService>();
+            services.AddSingleton<TransferEventHandler>();
             services.AddSingleton<FileService>();
 
             services.AddSingleton<IRelayService, RelayService>();
@@ -1085,6 +1088,7 @@ namespace slskd
                 endpoints.MapHub<ApplicationHub>("/hub/application");
                 endpoints.MapHub<LogsHub>("/hub/logs");
                 endpoints.MapHub<SearchHub>("/hub/search");
+                endpoints.MapHub<TransferHub>("/hub/transfers");
                 endpoints.MapHub<RelayHub>("/hub/relay");
 
                 endpoints.MapControllers();

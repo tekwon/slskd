@@ -952,7 +952,11 @@ namespace slskd.Transfers.Downloads
                                 transfer.EnqueuedAt ??= DateTime.UtcNow;
                             }
 
-                            // todo: broadcast
+                            if (args.Transfer.State == TransferStates.InProgress && args.PreviousState != TransferStates.InProgress)
+                            {
+                                EventBus.Raise(new DownloadFileStartedEvent { Transfer = transfer });
+                            }
+
                             SynchronizedUpdate(transfer, semaphore: updateSyncRoot, cancellationToken: cancellationToken);
                         }
                         finally
@@ -984,6 +988,8 @@ namespace slskd.Transfers.Downloads
                                     context.Transfers.Where(t => t.Id == transfer.Id).ExecuteUpdate(setter => setter
                                         .SetProperty(t => t.BytesTransferred, transfer.BytesTransferred)
                                         .SetProperty(t => t.AverageSpeed, transfer.AverageSpeed));
+
+                                    EventBus.Raise(new DownloadFileProgressEvent { Transfer = transfer });
                                 }
                                 finally
                                 {
@@ -1112,8 +1118,8 @@ namespace slskd.Transfers.Downloads
                 Log.Error(ex, "Download of {Filename} from user {Username} failed: {Message}", transfer.Filename, transfer.Username, ex.Message);
 
                 TryFail(transfer.Id, exception: ex);
-
-                // todo: broadcast
+                transfer = Find(t => t.Id == transfer.Id) ?? transfer;
+                EventBus.Raise(new DownloadFileCancelledEvent { Transfer = transfer });
                 SynchronizedUpdate(transfer, semaphore: updateSyncRoot, cancellationToken: CancellationToken.None);
 
                 throw;
@@ -1123,8 +1129,8 @@ namespace slskd.Transfers.Downloads
                 Log.Error(ex, "Download of {Filename} from user {Username} failed: {Message}", transfer.Filename, transfer.Username, ex.Message);
 
                 TryFail(transfer.Id, exception: ex);
-
-                // todo: broadcast
+                transfer = Find(t => t.Id == transfer.Id) ?? transfer;
+                EventBus.Raise(new DownloadFileErroredEvent { Transfer = transfer, ErrorMessage = ex.Message });
                 SynchronizedUpdate(transfer, semaphore: updateSyncRoot, cancellationToken: CancellationToken.None);
 
                 throw;

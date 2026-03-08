@@ -32,6 +32,10 @@ public enum EventType
     // UploadDirectoryComplete = 5,
     PrivateMessageReceived = 6,
     RoomMessageReceived = 7,
+    DownloadFileStarted = 8,
+    DownloadFileProgress = 9,
+    DownloadFileCancelled = 10,
+    DownloadFileErrored = 11,
 
     SoulseekClientConnected = 50,
     SoulseekClientDisconnected = 51,
@@ -68,6 +72,35 @@ public sealed record DownloadFileCompleteEvent : Event
     public required string LocalFilename { get; init; }
     public required string RemoteFilename { get; init; }
     public required Transfer Transfer { get; init; }
+}
+
+public sealed record DownloadFileStartedEvent : Event
+{
+    public override EventType Type => EventType.DownloadFileStarted;
+    public override int Version { get; } = 0;
+    public required Transfer Transfer { get; init; }
+}
+
+public sealed record DownloadFileProgressEvent : Event
+{
+    public override EventType Type => EventType.DownloadFileProgress;
+    public override int Version { get; } = 0;
+    public required Transfer Transfer { get; init; }
+}
+
+public sealed record DownloadFileCancelledEvent : Event
+{
+    public override EventType Type => EventType.DownloadFileCancelled;
+    public override int Version { get; } = 0;
+    public required Transfer Transfer { get; init; }
+}
+
+public sealed record DownloadFileErroredEvent : Event
+{
+    public override EventType Type => EventType.DownloadFileErrored;
+    public override int Version { get; } = 0;
+    public required Transfer Transfer { get; init; }
+    public required string ErrorMessage { get; init; }
 }
 
 public sealed record DownloadDirectoryCompleteEvent : Event
