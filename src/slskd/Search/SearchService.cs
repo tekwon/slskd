@@ -293,7 +293,11 @@ namespace slskd.Search
                 // the client state (e.g. disconnected) or a problem with the search (e.g. no terms)
                 var soulseekSearchTask = Client.SearchAsync(
                     query,
-                    responseHandler: (response) => responses.Add(response),
+                    responseHandler: (response) =>
+                    {
+                        responses.Add(response);
+                        _ = SearchHub.BroadcastResponseAsync(id, response);
+                    },
                     scope,
                     token,
                     options,
